@@ -1,0 +1,328 @@
+name: Build Installers
+
+# Trigger on version tags (v1.0.0, v2.3.1, …) or manual dispatch.
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      esmini_ref:
+        description: 'esmini release tag (leave empty for latest)'
+        required: false
+        default: ''
+
+permissions:
+  contents: write   # needed to create GitHub releases
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  # ──────────────────────────────────────────────────────────────────────────
+  # Matrix build - one job per OS
+  # ──────────────────────────────────────────────────────────────────────────
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            esmini_zip: esmini-demo_Linux.zip
+            lib_glob: 'libesmini*.so*'
+
+          - os: windows-latest
+            esmini_zip: esmini-demo_Windows.zip
+            lib_glob: 'esmini*.dll'
+
+          # - os: macos-latest
+          #   esmini_zip: esmini-demo_macOS.zip
+          #   lib_glob: 'libesmini*.dylib'
+
+    runs-on: ${{ matrix.os }}
+    name: Build on ${{ matrix.os }}
+
+    steps:
+      # ── Checkout ──────────────────────────────────────────────────────────
+      - uses: actions/checkout@v4
+
+      # ── Python ────────────────────────────────────────────────────────────
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: Install Python dependencies
+        run: pip install PyQt6 pyinstaller ./esmini-python
+
+      # ── Resolve esmini version ─────────────────────────────────────────────
+      - name: Resolve esmini release tag
+        id: esmini_tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          INPUT="${{ github.event.inputs.esmini_ref }}"
+          if [ -n "$INPUT" ]; then
+            TAG="$INPUT"
+          else
+            TAG=$(curl -fsSL \
+                  -H "Authorization: Bearer ${{ github.token }}" \
+                  -H "X-GitHub-Api-Version: 2022-11-28" \
+                  https://api.github.com/repos/esmini/esmini/releases/latest \
+                  | python3 -c 'import sys,json; d=json.load(sys.stdin); print(d["tag_name"])')
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "Resolved esmini tag: $TAG"
+
+      # ── Download esmini pre-built binaries ────────────────────────────────
+      - name: Download esmini binaries
+        shell: bash
+        env:
+          ESMINI_TAG: ${{ steps.esmini_tag.outputs.tag }}
+          ESMINI_ZIP: ${{ matrix.esmini_zip }}
+        run: |
+          set -euo pipefail
+          URL="https://github.com/esmini/esmini/releases/download/${ESMINI_TAG}/${ESMINI_ZIP}"
+          echo "Downloading $URL"
+          curl -fsSL "$URL" -o esmini-bin.zip
+
+          mkdir -p esmini_extract
+          unzip -q esmini-bin.zip -d esmini_extract
+
+          mkdir -p esmini_libs
+
+          # Copy esminiLib + esminiRMLib (all variants of name / extension)
+          find esmini_extract \
+            \( -name "libesminiLib*" -o -name "esminiLib*" \
+            -o -name "libesminiRMLib*" -o -name "esminiRMLib*" \) \
+            ! -name "*.cmake" ! -name "*.a" \
+            -exec cp -P {} esmini_libs/ \;
+
+          # Verify esminiLib was actually found
+          if ! ls esmini_libs/*esminiLib* 1>/dev/null 2>&1; then
+            echo "ERROR: esminiLib not found in downloaded package ${ESMINI_ZIP}" >&2
+            exit 1
+          fi
+
+          # Copy the repo's own scenarios/ directory into the staging folder
+          cp -r scenarios esmini_libs/scenarios
+
+          echo "esmini_libs/ contents:"
+          ls -lh esmini_libs/
+
+      - name: Add libesminiRMLib from esmini-bin (Linux)
+        if: runner.os == 'Linux'
+        shell: bash
+        env:
+          ESMINI_TAG: ${{ steps.esmini_tag.outputs.tag }}
+        run: |
+          set -euo pipefail
+          BIN_URL="https://github.com/esmini/esmini/releases/download/${ESMINI_TAG}/esmini-bin_Linux.zip"
+          echo "Downloading $BIN_URL"
+          curl -fsSL "$BIN_URL" -o esmini-bin_only.zip
+          # -j junks paths so the file lands directly in esmini_libs/
+          unzip -j -q esmini-bin_only.zip "esmini/bin/libesminiRMLib.so" -d esmini_libs/
+          if [ ! -f esmini_libs/libesminiRMLib.so ]; then
+            echo "ERROR: libesminiRMLib.so was not extracted from ${BIN_URL}" >&2
+            exit 1
+          fi
+          echo "esmini_libs/ after RM lib extraction:"
+          ls -lh esmini_libs/libesmini*.so
+
+      - name: Add esminiRMLib.dll from esmini-bin (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        env:
+          ESMINI_TAG: ${{ steps.esmini_tag.outputs.tag }}
+        run: |
+          set -euo pipefail
+          BIN_URL="https://github.com/esmini/esmini/releases/download/${ESMINI_TAG}/esmini-bin_Windows.zip"
+          echo "Downloading $BIN_URL"
+          curl -fsSL "$BIN_URL" -o esmini-bin_only.zip
+          unzip -j -q esmini-bin_only.zip "esmini/bin/esminiRMLib.dll" -d esmini_libs/
+          if [ ! -f esmini_libs/esminiRMLib.dll ]; then
+            echo "ERROR: esminiRMLib.dll was not extracted from ${BIN_URL}" >&2
+            exit 1
+          fi
+          echo "esmini_libs/ after RM lib extraction:"
+          ls -lh esmini_libs/esmini*.dll
+
+      # ── PyInstaller ───────────────────────────────────────────────────────
+      - name: Build with PyInstaller
+        run: pyinstaller OpenScenarioDrive.spec --noconfirm
+
+      # ── Linux - AppImage ──────────────────────────────────────────────────
+      - name: Install xcb runtime libs (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y --no-install-recommends \
+            libxcb-cursor0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 \
+            libxcb-randr0 libxcb-render-util0 libxcb-shape0 libxcb-xinerama0 \
+            libxcb-xkb1 libxkbcommon0 libxkbcommon-x11-0
+
+      - name: Build AppImage (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          set -euo pipefail
+          # Download appimagetool
+          wget -q \
+            https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage \
+            -O appimagetool
+          chmod +x appimagetool
+
+          # Build AppDir
+          mkdir -p AppDir/usr/bin AppDir/usr/lib
+          cp -r dist/OpenScenarioDrive/* AppDir/usr/bin/
+          cp installer/linux/AppRun  AppDir/AppRun
+          chmod +x AppDir/AppRun
+          cp installer/linux/OpenScenarioDrive.desktop AppDir/OpenScenarioDrive.desktop
+
+          # App icon - used by appimagetool and the .desktop entry
+          cp installer/icon.png AppDir/OpenScenarioDrive.png
+
+          # Bundle xcb libs required by Qt 6.5+ xcb platform plugin.
+          # Copy to BOTH usr/lib (LD_LIBRARY_PATH) AND the Qt platforms dir
+          # ($ORIGIN RPATH of libqxcb.so) so the linker finds them either way.
+          XCB_LIBS="libxcb-cursor libxcb-icccm libxcb-image libxcb-keysyms \
+                    libxcb-randr libxcb-render-util libxcb-shape libxcb-xinerama \
+                    libxcb-xkb libxkbcommon libxkbcommon-x11"
+
+          PLATFORM_DIR="AppDir/usr/bin/PyQt6/Qt6/plugins/platforms"
+          mkdir -p "$PLATFORM_DIR"
+
+          for base in $XCB_LIBS; do
+            # find the versioned .so file (not just the symlink)
+            src=$(find /usr/lib/x86_64-linux-gnu /usr/lib \
+                    -name "${base}.so*" ! -name "*.cmake" 2>/dev/null | head -1)
+            if [ -n "$src" ]; then
+              # resolve symlink so we copy the actual file
+              real=$(readlink -f "$src")
+              soname=$(basename "$src")
+              realname=$(basename "$real")
+              # usr/lib - picked up by AppRun's LD_LIBRARY_PATH
+              cp "$real" AppDir/usr/lib/"$realname"
+              [ "$soname" != "$realname" ] && \
+                ln -sf "$realname" AppDir/usr/lib/"$soname"
+              # platforms/ - picked up by libqxcb.so's $ORIGIN RPATH
+              cp "$real" "$PLATFORM_DIR/$realname"
+              [ "$soname" != "$realname" ] && \
+                ln -sf "$realname" "$PLATFORM_DIR/$soname"
+              echo "Bundled $soname → $realname"
+            else
+              echo "WARNING: ${base}.so* not found - skipping"
+            fi
+          done
+
+          # Create AppImage (FUSE not required with APPIMAGE_EXTRACT_AND_RUN)
+          ARCH=x86_64 APPIMAGE_EXTRACT_AND_RUN=1 \
+            ./appimagetool AppDir OpenScenarioDrive-Linux-x86_64.AppImage
+
+      - name: Upload AppImage (Linux)
+        if: runner.os == 'Linux'
+        uses: actions/upload-artifact@v4
+        with:
+          name: OpenScenarioDrive-Linux
+          path: |
+            OpenScenarioDrive-Linux-x86_64.AppImage
+            scenarios/
+
+      # ── Windows - Inno Setup installer ────────────────────────────────────
+      - name: Build Windows installer (Inno Setup)
+        if: runner.os == 'Windows'
+        shell: cmd
+        env:
+          APP_VERSION: ${{ github.ref_name }}
+        run: |
+          if not exist installer\windows\Output mkdir installer\windows\Output
+          "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer\windows\setup.iss
+          if errorlevel 1 (
+            echo ERROR: Inno Setup compilation failed >&2
+            exit /b 1
+          )
+
+      - name: Upload Windows installer
+        if: runner.os == 'Windows'
+        uses: actions/upload-artifact@v4
+        with:
+          name: OpenScenarioDrive-Windows
+          path: installer/windows/Output/*.exe
+
+      # ── macOS - DMG ───────────────────────────────────────────────────────
+      - name: Install create-dmg (macOS)
+        if: runner.os == 'macOS'
+        run: brew install create-dmg
+
+      - name: Build DMG (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          create-dmg \
+            --volname "OpenScenarioDrive" \
+            --window-pos 200 120 \
+            --window-size 600 400 \
+            --icon-size 128 \
+            --icon "OpenScenarioDrive.app" 175 190 \
+            --hide-extension "OpenScenarioDrive.app" \
+            --app-drop-link 425 190 \
+            "OpenScenarioDrive-macOS.dmg" \
+            "dist/OpenScenarioDrive.app"
+
+      - name: Upload DMG (macOS)
+        if: runner.os == 'macOS'
+        uses: actions/upload-artifact@v4
+        with:
+          name: OpenScenarioDrive-macOS
+          path: OpenScenarioDrive-macOS.dmg
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # GitHub Release - runs after all three builds succeed
+  # ──────────────────────────────────────────────────────────────────────────
+  release:
+    name: Create GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    # Only publish a release on tag pushes, not on workflow_dispatch
+    if: startsWith(github.ref, 'refs/tags/v')
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: "OpenScenarioDrive ${{ github.ref_name }}"
+          body: |
+            ## OpenScenarioDrive ${{ github.ref_name }}
+
+            Cross-platform installers built automatically by GitHub Actions.
+
+            | Platform | File |
+            |----------|------|
+            | Linux    | `OpenScenarioDrive-Linux-x86_64.AppImage` |
+            | Windows  | `OpenScenarioDrive-Windows-Setup.exe`     |
+            | macOS    | `OpenScenarioDrive-macOS.dmg`             |
+
+            ### Linux - AppImage
+            Download both the `.AppImage` and the `scenarios/` folder from the artifact zip and place them in the same directory.
+            ```bash
+            chmod +x OpenScenarioDrive-Linux-x86_64.AppImage
+            ./OpenScenarioDrive-Linux-x86_64.AppImage
+            # To open a specific scenario at startup:
+            SCENARIO=/path/to/my.xosc ./OpenScenarioDrive-Linux-x86_64.AppImage
+            ```
+
+            ### Windows
+            Run the Setup `.exe` and follow the installer wizard.
+
+            ### macOS
+            Open the `.dmg`, drag **OpenScenarioDrive** to Applications, then launch it.
+          files: |
+            artifacts/OpenScenarioDrive-Linux/OpenScenarioDrive-Linux-x86_64.AppImage
+            artifacts/OpenScenarioDrive-Windows/OpenScenarioDrive-Windows-Setup.exe
+            artifacts/OpenScenarioDrive-macOS/OpenScenarioDrive-macOS.dmg
+          draft: false
+          prerelease: false

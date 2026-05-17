@@ -1,0 +1,14 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "esmini-python"
+version = "0.1.0"
+description = "Python ctypes wrapper for the esmini simulation libraries (esminiLib / esminiRMLib)"
+requires-python = ">=3.9"
+license = {text = "MPL-2.0"}
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["esmini*"]

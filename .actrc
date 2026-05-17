@@ -1,0 +1,16 @@
+# act project defaults - applied automatically on every `act` invocation.
+# Override any flag on the command line.
+
+# Use catthehacker's image which has apt, curl, git, python3 pre-installed.
+# The "act-22.04" variant is ~1.5 GB (vs. 30 GB for "full-22.04").
+-P ubuntu-latest=catthehacker/ubuntu:act-22.04
+
+# Runner containers share the host network so the act artifact server
+# (127.0.0.1:34567) is reachable without cross-container DNS tricks.
+--container-options --network=host
+
+# Bind the artifact server explicitly to 127.0.0.1 (host network).
+--artifact-server-addr 127.0.0.1
+
+# Point act at the host Docker daemon (DooD - daemon socket is bind-mounted).
+--container-daemon-socket /var/run/docker.sock

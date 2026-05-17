@@ -1,0 +1,13 @@
+#!/bin/bash
+# AppImage AppRun - launched by the AppImage runtime before handing off to the app.
+# HERE is the root of the extracted AppDir (set by the AppImage runtime).
+HERE="$(dirname "$(readlink -f "${0}")")"
+
+# PyInstaller 6+ places all collected binaries in usr/bin/_internal/.
+# ESMINI_LIB_DIR and ESMINI_RESOURCE_PATH are set by main_entry.py at runtime
+# using sys._MEIPASS so they always point at the correct _internal/ location.
+# usr/lib     - bundled xcb libs (libxcb-cursor etc.) required by Qt 6.5+
+# usr/bin/_internal - esmini + Qt libs placed there by PyInstaller 6+
+export LD_LIBRARY_PATH="${HERE}/usr/lib:${HERE}/usr/bin/_internal:${HERE}/usr/bin:${LD_LIBRARY_PATH:-}"
+
+exec "${HERE}/usr/bin/OpenScenarioDrive" "$@"

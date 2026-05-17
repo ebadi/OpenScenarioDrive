@@ -1,0 +1,133 @@
+services:
+
+  # ── Serial build for diagnosing compile errors ────────────────────────────
+  build-debug:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        BUILD_JOBS: "8"
+    image: esmini-python-api:debug
+    command: echo "Build succeeded"
+
+  # ── Run the complete test suite (default) ──────────────────────────────────
+  test:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: esmini-python-api:latest
+    environment:
+      - ESMINI_LIB_DIR=/app/esmini
+      - ESMINI_RESOURCE_PATH=/app/esmini/resources
+    command: >
+      python3 -m pytest tests/ -v --tb=short
+
+  # ── Road-manager unit tests only ──────────────────────────────────────────
+  test-rm:
+    image: esmini-python-api:latest
+    environment:
+      - ESMINI_LIB_DIR=/app/esmini
+      - ESMINI_RESOURCE_PATH=/app/esmini/resources
+    command: >
+      python3 -m pytest tests/test_rm_lib.py -v --tb=short
+    depends_on:
+      - test
+
+  # ── Scenario-engine unit tests only ───────────────────────────────────────
+  test-lib:
+    image: esmini-python-api:latest
+    environment:
+      - ESMINI_LIB_DIR=/app/esmini
+      - ESMINI_RESOURCE_PATH=/app/esmini/resources
+    command: >
+      python3 -m pytest tests/test_lib.py -v --tb=short
+    depends_on:
+      - test
+
+  # ── Integration tests only ────────────────────────────────────────────────
+  test-integration:
+    image: esmini-python-api:latest
+    environment:
+      - ESMINI_LIB_DIR=/app/esmini
+      - ESMINI_RESOURCE_PATH=/app/esmini/resources
+    command: >
+      python3 -m pytest tests/test_integration.py -v --tb=short
+    depends_on:
+      - test
+
+  # ── GUI controller (X11 forwarding) ───────────────────────────────────────
+  #
+  # Prerequisites on the host:
+  #   Linux  : run `xhost +local:docker` once per session
+  #   macOS  : start XQuartz, then `xhost +localhost`
+  #   Windows: start VcXsrv / X410 with "Disable access control" checked
+  #
+  # Launch:
+  #   docker compose build gui
+  #   docker compose run --rm gui
+  #   # To open a specific scenario directly:
+  #   docker compose run --rm -e SCENARIO=/app/scenarios/my.xosc gui
+  gui:
+    build:
+      context: .
+      dockerfile: Dockerfile.gui
+      args:
+        ESMINI_REF: master
+        BUILD_JOBS: ""
+    image: esmini-gui:latest
+    environment:
+      - DISPLAY=${DISPLAY:-:0}
+      - XAUTHORITY=/root/.Xauthority
+      - ESMINI_LIB_DIR=/app/esmini
+      - ESMINI_RESOURCE_PATH=/app/esmini/resources
+      - QT_QPA_PLATFORM=xcb
+      # Optional: pre-load a scenario at startup
+      - SCENARIO=${SCENARIO:-}
+    volumes:
+      # X11 socket - required for the window to appear on the host display
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      # X authority cookie - allows the container to authenticate with the X server
+      - ${XAUTHORITY:-~/.Xauthority}:/root/.Xauthority:ro
+      - ./scenarios:/app/scenarios
+
+    network_mode: host
+
+  # ── Run the GitHub Actions build workflow locally via act ─────────────────
+  #
+  # Builds the Linux AppImage exactly as CI would.
+  # Output lands in ./dist/appimage/ on the host.
+  #
+  # Prerequisites:
+  #   docker compose build act-build
+  #
+  # Run (optional: pin an esmini version with ESMINI_REF):
+  #   docker compose run --rm act-build
+  #   ESMINI_REF=v2.37.8 docker compose run --rm act-build
+  #
+  # To pass a GitHub token (avoids rate-limiting on the esmini tag lookup):
+  #   GITHUB_TOKEN=ghp_... docker compose run --rm act-build
+  #
+  act-build:
+    build:
+      context: .
+      dockerfile: Dockerfile.act
+    # Host network lets runner containers reach act's artifact server on 127.0.0.1
+    network_mode: host
+    volumes:
+      # Repo root - act uses this as the workflow workspace
+      - .:/workspace
+      # Docker daemon socket - Docker-out-of-Docker (DooD)
+      - /var/run/docker.sock:/var/run/docker.sock
+      # AppImage artifact output on the host
+      - ./dist/appimage:/artifacts
+    working_dir: /workspace
+    environment:
+      - GITHUB_TOKEN=${GITHUB_TOKEN:-}
+    # Trigger workflow_dispatch; only run the Linux build matrix entry.
+    # The AppImage is saved to ./dist/appimage/ via the artifact server.
+    command: >-
+      workflow_dispatch
+      -j build
+      --matrix os:ubuntu-latest
+      --artifact-server-path /artifacts
+      --input esmini_ref=${ESMINI_REF:-}

@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=OpenScenario GUI
+Comment=OpenSCENARIO / OpenDRIVE scenario editor
+Exec=OpenScenarioDrive
+Icon=OpenScenarioDrive
+Type=Application
+Categories=Science;Engineering;Education;
+Terminal=false
+StartupNotify=true

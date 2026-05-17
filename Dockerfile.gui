@@ -1,0 +1,87 @@
+# ── Stage 1: build esmini shared libraries (headless, no OSG) ─────────────────
+FROM ubuntu:22.04 AS builder
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        build-essential \
+        cmake \
+        git \
+        ca-certificates \
+        pkg-config \
+        libgl-dev \
+        libpthread-stubs0-dev \
+        libjpeg-dev \
+        libpng-dev \
+        libtiff5-dev \
+        libxml2-dev \
+        libxrandr-dev \
+        libxinerama-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+ARG ESMINI_REF=master
+ARG BUILD_JOBS=
+RUN git clone --depth 1 --branch ${ESMINI_REF} \
+        https://github.com/esmini/esmini.git /tmp/esmini \
+    && cmake -S /tmp/esmini -B /tmp/esmini/build \
+        -DUSE_OSG=false \
+        -DCMAKE_BUILD_TYPE=Release \
+    && cmake --build /tmp/esmini/build \
+        --target esminiLib esminiRMLib \
+        ${BUILD_JOBS:+-j${BUILD_JOBS}} \
+    && mkdir -p /out/esmini \
+    && find /tmp/esmini/build -name "libesminiLib.so"   -exec cp {} /out/esmini/ \; \
+    && find /tmp/esmini/build -name "libesminiRMLib.so" -exec cp {} /out/esmini/ \; \
+    && cp -r /tmp/esmini/resources /out/esmini/resources \
+    && rm -rf /tmp/esmini
+
+
+# ── Stage 2: GUI runtime ───────────────────────────────────────────────────────
+FROM python:3.11-slim
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# X11 client libraries + Qt XCB platform plugin dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        libgl1 \
+        libglib2.0-0 \
+        libdbus-1-3 \
+        libx11-6 \
+        libxext6 \
+        libxcb1 \
+        libxcb-cursor0 \
+        libxcb-icccm4 \
+        libxcb-image0 \
+        libxcb-keysyms1 \
+        libxcb-randr0 \
+        libxcb-render-util0 \
+        libxcb-shape0 \
+        libxcb-xinerama0 \
+        libxcb-xkb1 \
+        libxkbcommon0 \
+        libxkbcommon-x11-0 \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# esmini shared libraries and bundled resources
+COPY --from=builder /out/esmini /app/esmini
+
+# Install the esmini Python wrapper package and GUI dependencies
+COPY esmini-python/ /app/esmini-python/
+RUN pip install --no-cache-dir PyQt6 /app/esmini-python
+
+COPY gui/       /app/gui/
+
+ENV ESMINI_LIB_DIR=/app/esmini
+ENV ESMINI_RESOURCE_PATH=/app
+# Force the XCB platform plugin (required for X11 forwarding)
+ENV QT_QPA_PLATFORM=xcb
+
+# Kept as a separate layer so it doesn't invalidate the cached layers above
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        libegl1 \
+        libfontconfig1 \
+    && rm -rf /var/lib/apt/lists/*
+
+CMD ["python3", "-m", "gui"]
