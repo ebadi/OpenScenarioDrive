@@ -31,13 +31,13 @@ jobs:
             esmini_zip: esmini-demo_Linux.zip
             lib_glob: 'libesmini*.so*'
 
-          # - os: windows-latest
-          #   esmini_zip: esmini-demo_Windows.zip
-          #   lib_glob: 'esmini*.dll'
+          - os: windows-latest
+            esmini_zip: esmini-demo_Windows.zip
+            lib_glob: 'esmini*.dll'
 
-          # - os: macos-latest
-          #   esmini_zip: esmini-demo_macOS.zip
-          #   lib_glob: 'libesmini*.dylib'
+          - os: macos-latest
+            esmini_zip: esmini-demo_macOS.zip
+            lib_glob: 'libesmini*.dylib'
 
     runs-on: ${{ matrix.os }}
     name: Build on ${{ matrix.os }}
@@ -321,7 +321,14 @@ jobs:
             SCENARIO=/path/to/my.xosc ./OpenScenarioDrive-Linux-x86_64.AppImage
             ```
 
+            ### Windows
+            Run the Setup `.exe` and follow the installer wizard.
+
+            ### macOS
+            Open the `.dmg`, drag **OpenScenarioDrive** to Applications, then launch it.
           files: |
             artifacts/OpenScenarioDrive-Linux/OpenScenarioDrive-Linux-x86_64.AppImage
+            artifacts/OpenScenarioDrive-Windows/OpenScenarioDrive-Windows-Setup.exe
+            artifacts/OpenScenarioDrive-macOS/OpenScenarioDrive-macOS.dmg
           draft: false
           prerelease: false
