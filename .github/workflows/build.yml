@@ -31,13 +31,13 @@ jobs:
             esmini_zip: esmini-demo_Linux.zip
             lib_glob: 'libesmini*.so*'
 
-          - os: windows-latest
-            esmini_zip: esmini-demo_Windows.zip
-            lib_glob: 'esmini*.dll'
+          # - os: windows-latest
+          #   esmini_zip: esmini-demo_Windows.zip
+          #   lib_glob: 'esmini*.dll'
 
-          - os: macos-latest
-            esmini_zip: esmini-demo_macOS.zip
-            lib_glob: 'libesmini*.dylib'
+          # - os: macos-latest
+          #   esmini_zip: esmini-demo_macOS.zip
+          #   lib_glob: 'libesmini*.dylib'
 
     runs-on: ${{ matrix.os }}
     name: Build on ${{ matrix.os }}
@@ -188,26 +188,32 @@ jobs:
                     libxcb-randr libxcb-render-util libxcb-shape libxcb-xinerama \
                     libxcb-xkb libxkbcommon libxkbcommon-x11"
 
-          PLATFORM_DIR="AppDir/usr/bin/PyQt6/Qt6/plugins/platforms"
+          # PyInstaller 6+ places collected files under _internal/
+          PLATFORM_DIR="AppDir/usr/bin/_internal/PyQt6/Qt6/plugins/platforms"
           mkdir -p "$PLATFORM_DIR"
 
           for base in $XCB_LIBS; do
-            # find the versioned .so file (not just the symlink)
+            # Prefer the .so.N symlink so we get the correct SONAME; fall back to any match
             src=$(find /usr/lib/x86_64-linux-gnu /usr/lib \
+                    -name "${base}.so.[0-9]" 2>/dev/null | head -1)
+            [ -z "$src" ] && src=$(find /usr/lib/x86_64-linux-gnu /usr/lib \
                     -name "${base}.so*" ! -name "*.cmake" 2>/dev/null | head -1)
             if [ -n "$src" ]; then
-              # resolve symlink so we copy the actual file
               real=$(readlink -f "$src")
-              soname=$(basename "$src")
               realname=$(basename "$real")
+              # Extract major-version SONAME (e.g. libxcb-cursor.so.0)
+              soname=$(echo "$realname" | grep -oP '^.+\.so\.\d+')
+              [ -z "$soname" ] && soname="$realname"
+
+              copy_lib() {
+                local dir="$1"
+                cp "$real" "$dir/$realname"
+                [ "$soname" != "$realname" ] && ln -sf "$realname" "$dir/$soname"
+              }
               # usr/lib - picked up by AppRun's LD_LIBRARY_PATH
-              cp "$real" AppDir/usr/lib/"$realname"
-              [ "$soname" != "$realname" ] && \
-                ln -sf "$realname" AppDir/usr/lib/"$soname"
+              copy_lib AppDir/usr/lib
               # platforms/ - picked up by libqxcb.so's $ORIGIN RPATH
-              cp "$real" "$PLATFORM_DIR/$realname"
-              [ "$soname" != "$realname" ] && \
-                ln -sf "$realname" "$PLATFORM_DIR/$soname"
+              copy_lib "$PLATFORM_DIR"
               echo "Bundled $soname → $realname"
             else
               echo "WARNING: ${base}.so* not found - skipping"
@@ -315,14 +321,7 @@ jobs:
             SCENARIO=/path/to/my.xosc ./OpenScenarioDrive-Linux-x86_64.AppImage
             ```
 
-            ### Windows
-            Run the Setup `.exe` and follow the installer wizard.
-
-            ### macOS
-            Open the `.dmg`, drag **OpenScenarioDrive** to Applications, then launch it.
           files: |
             artifacts/OpenScenarioDrive-Linux/OpenScenarioDrive-Linux-x86_64.AppImage
-            artifacts/OpenScenarioDrive-Windows/OpenScenarioDrive-Windows-Setup.exe
-            artifacts/OpenScenarioDrive-macOS/OpenScenarioDrive-macOS.dmg
           draft: false
           prerelease: false
