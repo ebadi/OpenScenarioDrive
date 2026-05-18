@@ -147,6 +147,24 @@ jobs:
           echo "esmini_libs/ after RM lib extraction:"
           ls -lh esmini_libs/esmini*.dll
 
+      - name: Add libesminiRMLib from esmini-bin (macOS)
+        if: runner.os == 'macOS'
+        shell: bash
+        env:
+          ESMINI_TAG: ${{ steps.esmini_tag.outputs.tag }}
+        run: |
+          set -euo pipefail
+          BIN_URL="https://github.com/esmini/esmini/releases/download/${ESMINI_TAG}/esmini-bin_macOS.zip"
+          echo "Downloading $BIN_URL"
+          curl -fsSL "$BIN_URL" -o esmini-bin_only.zip
+          unzip -j -q esmini-bin_only.zip "esmini/bin/libesminiRMLib.dylib" -d esmini_libs/
+          if [ ! -f esmini_libs/libesminiRMLib.dylib ]; then
+            echo "ERROR: libesminiRMLib.dylib was not extracted from ${BIN_URL}" >&2
+            exit 1
+          fi
+          echo "esmini_libs/ after RM lib extraction:"
+          ls -lh esmini_libs/libesmini*.dylib
+
       # ── PyInstaller ───────────────────────────────────────────────────────
       - name: Build with PyInstaller
         run: pyinstaller OpenScenarioDrive.spec --noconfirm
@@ -231,7 +249,6 @@ jobs:
           name: OpenScenarioDrive-Linux
           path: |
             OpenScenarioDrive-Linux-x86_64.AppImage
-            scenarios/
 
       # ── Windows - Inno Setup installer ────────────────────────────────────
       - name: Build Windows installer (Inno Setup)
@@ -306,14 +323,8 @@ jobs:
 
             Cross-platform installers built automatically by GitHub Actions.
 
-            | Platform | File |
-            |----------|------|
-            | Linux    | `OpenScenarioDrive-Linux-x86_64.AppImage` |
-            | Windows  | `OpenScenarioDrive-Windows-Setup.exe`     |
-            | macOS    | `OpenScenarioDrive-macOS.dmg`             |
 
             ### Linux - AppImage
-            Download both the `.AppImage` and the `scenarios/` folder from the artifact zip and place them in the same directory.
             ```bash
             chmod +x OpenScenarioDrive-Linux-x86_64.AppImage
             ./OpenScenarioDrive-Linux-x86_64.AppImage
@@ -323,6 +334,10 @@ jobs:
 
             ### Windows
             Run the Setup `.exe` and follow the installer wizard.
+
+            > **Windows SmartScreen warning:** Because the installer is not code-signed, Windows Defender
+            > SmartScreen may show a "Windows protected your PC" dialog. Click **More info** and then **Run
+            > anyway** to proceed with the installation.
 
             ### macOS
             Open the `.dmg`, drag **OpenScenarioDrive** to Applications, then launch it.

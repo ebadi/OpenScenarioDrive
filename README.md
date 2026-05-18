@@ -2,6 +2,8 @@
 
 ![OpenScenarioDrive](installer/icon_small.png)
 
+[![Build Installers](https://github.com/ebadi/OpenScenarioDrive/actions/workflows/build.yml/badge.svg)](https://github.com/ebadi/OpenScenarioDrive/actions/workflows/build.yml)
+
 [![Download](https://img.shields.io/github/v/release/ebadi/OpenScenarioDrive?label=Download&logo=github)](https://github.com/ebadi/OpenScenarioDrive/releases/latest)
 
 A PyQt6-based graphical controller and editor for OpenSCENARIO .xosc files. The application provides
