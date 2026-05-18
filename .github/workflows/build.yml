@@ -35,9 +35,9 @@ jobs:
             esmini_zip: esmini-demo_Windows.zip
             lib_glob: 'esmini*.dll'
 
-          # - os: macos-latest
-          #   esmini_zip: esmini-demo_macOS.zip
-          #   lib_glob: 'libesmini*.dylib'
+          - os: macos-latest
+            esmini_zip: esmini-demo_macOS.zip
+            lib_glob: 'libesmini*.dylib'
 
     runs-on: ${{ matrix.os }}
     name: Build on ${{ matrix.os }}

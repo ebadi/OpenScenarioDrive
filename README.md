@@ -1,6 +1,8 @@
-# OpenScenarioDrive editor
+# OpenScenarioDrive Editor
 
-![OpenScenarioDrive](installer/icon.png)
+![OpenScenarioDrive](installer/icon_small.png)
+
+[![Download](https://img.shields.io/github/v/release/ebadi/OpenScenarioDrive?label=Download&logo=github)](https://github.com/ebadi/OpenScenarioDrive/releases/latest)
 
 A PyQt6-based graphical controller and editor for OpenSCENARIO .xosc files. The application provides
 a real-time simulation control interface with integrated XML editors for `.xosc` and `.xodr` files.
@@ -35,6 +37,7 @@ The Linux release artifact is a ZIP that contains:
 Extract the ZIP and keep both items in the same directory, then run:
 
 ```bash
+chmod +x ./OpenScenarioDrive-Linux-x86_64.AppImage
 ./OpenScenarioDrive-Linux-x86_64.AppImage
 ```
 
@@ -79,7 +82,6 @@ The **Parameters** panel lists every `<ParameterDeclaration>` exposed by the loa
 | Column | Description                                                        |
 | ------ | ------------------------------------------------------------------ |
 | Name   | Parameter name as declared in the `.xosc` file                     |
-| Type   | `int`, `double`, `string`, or `bool`                               |
 | Value  | Editable field - click any cell in this column to change the value |
 
 To change a parameter click any cell in the **Value** column and type the new value and then click
@@ -92,3 +94,9 @@ To change a parameter click any cell in the **Value** column and type the new va
 | **Top-Down Viewport** | 2D bird's-eye view of the road network and moving actors                                |
 | **World Properties**  | Current simulation time and active object count                                         |
 | **Events**            | Colour-coded live log of storyboard state changes (blue) and condition triggers (green) |
+
+## Credits
+
+The scenario and road network files (`.xosc`, `.xodr`) bundled with this application are sourced from the [esmini](https://github.com/esmini/esmini) project (Environment Simulator Minimalistic) and are used under their respective licenses. Many thanks to the esmini contributors for providing these open resources.
+
+[![License](https://img.shields.io/badge/License-BSD_3--Clause-blue.svg)](LICENSE.txt)

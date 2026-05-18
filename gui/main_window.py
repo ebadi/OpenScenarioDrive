@@ -272,6 +272,10 @@ class MainWindow(QMainWindow):
             "https://github.com/ebadi/OpenScenarioDrive</a><br><br>"
             "Source license: BSD 3-Clause License<br>"
             "Distributed binary: GPL-3.0 (via PyQt6)<br><br>"
+            "<b>Third-party content</b><br>"
+            "Scenario and road network files (.xosc, .xodr) are sourced from the "
+            '<a href="https://github.com/esmini/esmini">esmini</a> project '
+            "and are used under their respective licenses.<br>"
         )
         info.setOpenExternalLinks(True)
         info.setWordWrap(True)
