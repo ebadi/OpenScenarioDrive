@@ -4,7 +4,7 @@
 
 [![Build Installers](https://github.com/ebadi/OpenScenarioDrive/actions/workflows/build.yml/badge.svg)](https://github.com/ebadi/OpenScenarioDrive/actions/workflows/build.yml)
 
-[![Download](https://img.shields.io/github/v/release/ebadi/OpenScenarioDrive?label=Download&logo=github)](https://github.com/ebadi/OpenScenarioDrive/releases/latest)
+[![Download](https://img.shields.io/github/v/release/ebadi/OpenScenarioDrive?label=Download&logo=github)](../../releases/latest) &nbsp; <a href="../../releases/latest"><img src="installer/windows.svg" height="20" alt="Windows"/></a> <a href="../../releases/latest"><img src="installer/macos.svg" height="20" alt="macOS"/></a> <a href="../../releases/latest"><img src="installer/linux.svg" height="20" alt="Linux"/></a>
 
 A PyQt6-based graphical controller and editor for OpenSCENARIO .xosc files. The application provides
 a real-time simulation control interface with integrated XML editors for `.xosc` and `.xodr` files.
