@@ -151,4 +151,5 @@ if sys.platform == "darwin":
             "CFBundleShortVersionString": "1.0.0",
             "CFBundleName": "OpenScenarioDrive",
         },
+        target_arch="universal2",
     )

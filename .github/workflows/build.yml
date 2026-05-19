@@ -168,12 +168,7 @@ jobs:
       # ── PyInstaller ───────────────────────────────────────────────────────
       - name: Build with PyInstaller
         shell: bash
-        run: |
-          if [ "$RUNNER_OS" = "macOS" ]; then
-            pyinstaller OpenScenarioDrive.spec --noconfirm --target-arch universal2
-          else
-            pyinstaller OpenScenarioDrive.spec --noconfirm
-          fi
+        run: pyinstaller OpenScenarioDrive.spec --noconfirm
 
       # ── Linux - AppImage ──────────────────────────────────────────────────
       - name: Install xcb runtime libs (Linux)
