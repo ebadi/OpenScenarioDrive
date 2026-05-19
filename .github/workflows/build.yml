@@ -167,7 +167,13 @@ jobs:
 
       # ── PyInstaller ───────────────────────────────────────────────────────
       - name: Build with PyInstaller
-        run: pyinstaller OpenScenarioDrive.spec --noconfirm
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = "macOS" ]; then
+            pyinstaller OpenScenarioDrive.spec --noconfirm --target-arch universal2
+          else
+            pyinstaller OpenScenarioDrive.spec --noconfirm
+          fi
 
       # ── Linux - AppImage ──────────────────────────────────────────────────
       - name: Install xcb runtime libs (Linux)
@@ -341,6 +347,12 @@ jobs:
 
             ### macOS
             Open the `.dmg`, drag **OpenScenarioDrive** to Applications, then launch it.
+
+            > **macOS security warning:** Because the app is not notarized, macOS may block it. Right-click
+            > the app → **Open** → **Open** to bypass Gatekeeper, or run:
+            > `xattr -rd com.apple.quarantine /Applications/OpenScenarioDrive.app`
+            >
+            > The DMG is a universal binary and runs natively on both Intel and Apple Silicon Macs.
           files: |
             artifacts/OpenScenarioDrive-Linux/OpenScenarioDrive-Linux-x86_64.AppImage
             artifacts/OpenScenarioDrive-Windows/OpenScenarioDrive-Windows-Setup.exe
