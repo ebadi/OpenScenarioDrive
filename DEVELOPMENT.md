@@ -67,6 +67,13 @@ gui/
 esmini.py                        # Python ctypes wrapper for libesminiLib / libesminiRMLib
 ```
 
+### Build the installer using github action
+
+```
+git commit -m "fix: release v1.0.x"
+git tag v1.0.x
+git push origin  v1.0.x
+```
 ### Build the installer locally with `act` on Linux
 
 [`act`](https://github.com/nektos/act) runs the GitHub Actions workflow on your machine inside
