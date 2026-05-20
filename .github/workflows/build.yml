@@ -35,19 +35,9 @@ jobs:
             esmini_zip: esmini-demo_Windows.zip
             lib_glob: 'esmini*.dll'
 
-          - os: macos-13
-            esmini_zip: esmini-demo_macOS.zip
-            lib_glob: 'libesmini*.dylib'
-            target_arch: x86_64
-            dmg_name: OpenScenarioDrive-macOS-Intel.dmg
-            artifact_name: OpenScenarioDrive-macOS-Intel
-
           - os: macos-latest
             esmini_zip: esmini-demo_macOS.zip
             lib_glob: 'libesmini*.dylib'
-            target_arch: arm64
-            dmg_name: OpenScenarioDrive-macOS-AppleSilicon.dmg
-            artifact_name: OpenScenarioDrive-macOS-AppleSilicon
 
     runs-on: ${{ matrix.os }}
     name: Build on ${{ matrix.os }}
@@ -177,9 +167,6 @@ jobs:
 
       # ── PyInstaller ───────────────────────────────────────────────────────
       - name: Build with PyInstaller
-        shell: bash
-        env:
-          PYINSTALLER_TARGET_ARCH: ${{ matrix.target_arch }}
         run: pyinstaller OpenScenarioDrive.spec --noconfirm
 
       # ── Linux - AppImage ──────────────────────────────────────────────────
@@ -300,15 +287,15 @@ jobs:
             --icon "OpenScenarioDrive.app" 175 190 \
             --hide-extension "OpenScenarioDrive.app" \
             --app-drop-link 425 190 \
-            "${{ matrix.dmg_name }}" \
+            "OpenScenarioDrive-macOS.dmg" \
             "dist/OpenScenarioDrive.app"
 
       - name: Upload DMG (macOS)
         if: runner.os == 'macOS'
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.artifact_name }}
-          path: ${{ matrix.dmg_name }}
+          name: OpenScenarioDrive-macOS
+          path: OpenScenarioDrive-macOS.dmg
 
   # ──────────────────────────────────────────────────────────────────────────
   # GitHub Release - runs after all three builds succeed
@@ -353,19 +340,10 @@ jobs:
             > anyway** to proceed with the installation.
 
             ### macOS
-            Download the DMG matching your Mac:
-            - **Apple Silicon (M1 or later):** `OpenScenarioDrive-macOS-AppleSilicon.dmg` — runs natively on M1/M2/M3/M4 Macs.
-            - **Intel Mac:** `OpenScenarioDrive-macOS-Intel.dmg` — runs natively on Intel Macs, and on Apple Silicon via Rosetta 2.
-
             Open the `.dmg`, drag **OpenScenarioDrive** to Applications, then launch it.
-
-            > **macOS security warning:** Because the app is not notarized, macOS may block it. Right-click
-            > the app → **Open** → **Open** to bypass Gatekeeper, or run:
-            > `xattr -rd com.apple.quarantine /Applications/OpenScenarioDrive.app`
           files: |
             artifacts/OpenScenarioDrive-Linux/OpenScenarioDrive-Linux-x86_64.AppImage
             artifacts/OpenScenarioDrive-Windows/OpenScenarioDrive-Windows-Setup.exe
-            artifacts/OpenScenarioDrive-macOS-Intel/OpenScenarioDrive-macOS-Intel.dmg
-            artifacts/OpenScenarioDrive-macOS-AppleSilicon/OpenScenarioDrive-macOS-AppleSilicon.dmg
+            artifacts/OpenScenarioDrive-macOS/OpenScenarioDrive-macOS.dmg
           draft: false
           prerelease: false

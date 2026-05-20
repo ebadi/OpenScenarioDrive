@@ -151,5 +151,4 @@ if sys.platform == "darwin":
             "CFBundleShortVersionString": "1.0.0",
             "CFBundleName": "OpenScenarioDrive",
         },
-        target_arch=os.environ.get("PYINSTALLER_TARGET_ARCH") or None,
     )
