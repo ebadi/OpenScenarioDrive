@@ -28,7 +28,15 @@ Run `OpenScenarioDrive-Windows-Setup.exe` and follow the installer wizard.
 
 #### macOS - DMG
 
-Open `OpenScenarioDrive-macOS.dmg`, drag **OpenScenarioDrive** to Applications, then launch it.
+Two DMGs are available — download the one matching your Mac:
+
+- **Apple Silicon (M1 or later):** `OpenScenarioDrive-macOS-AppleSilicon.dmg` — runs natively on M1/M2/M3/M4 Macs.
+- **Intel Mac:** `OpenScenarioDrive-macOS-Intel.dmg` — runs natively on Intel Macs, and on Apple Silicon via Rosetta 2.
+
+Open the `.dmg`, drag **OpenScenarioDrive** to Applications, then launch it.
+
+> **macOS security warning:** Because the app is not notarized, macOS may block it. Right-click the app → **Open** → **Open** to bypass Gatekeeper, or run:
+> `xattr -rd com.apple.quarantine /Applications/OpenScenarioDrive.app`
 
 #### Linux - AppImage
 
