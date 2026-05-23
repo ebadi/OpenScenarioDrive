@@ -26,6 +26,10 @@ Run `OpenScenarioDrive-Windows-Setup.exe` and follow the installer wizard.
 > SmartScreen may show a "Windows protected your PC" dialog. Click **More info** and then **Run
 > anyway** to proceed with the installation.
 
+📹 Video demo :
+
+[![OpenScenarioDrive Editor for OpenSCENARIO .xosc files](https://img.youtube.com/vi/66SUEqmxTLk/0.jpg)](https://www.youtube.com/watch?v=66SUEqmxTLk)
+
 #### macOS - DMG
 
 Open `OpenScenarioDrive-macOS.dmg`, drag **OpenScenarioDrive** to Applications, then launch it.
